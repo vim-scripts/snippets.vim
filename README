@@ -1,0 +1,20 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=2152
+
+Simple utility for managing snippets of text within vim. Users can add, edit, and delete snippets within vim. Command completion is supported in all places that make sense. A menu is also added at "Plugin/Snippets".
+
+COMMANDS
+AddSnippet -- adds new snippet that contain a range of lines
+EditSnippet -- edits a snippet in a new tab
+DeleteSnippet -- deletes a snippet (with confirmation)
+InsertSnippet -- inserts a snippet before the current line
+AppendSnippet -- inserts a snippet after the current line
+ListSnippets -- lists snippets
+
+MAPPINGS (<leader> is set to '\&#039, by default)
+<leader>ssa -- AddSnippet with current buffer (normal mode)
+<leader>ssa -- AddSnippet with range of lines (visual mode)
+<leader>sse -- EditSnippet
+<leader>ssd -- DeleteSnippet
+<leader>ssp -- AppendSnippet
+<leader>ssP -- InsertSnippet
+<leader>ssl -- ListSnippets
