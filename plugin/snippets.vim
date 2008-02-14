@@ -1,5 +1,5 @@
 " Simple snippet storage and retrieval separated by filetype
-" Last Modified: Thu 2008-02-14 14:30:06 (-0500)
+" Last Modified: Thu 2008-02-14 15:11:50 (-0500)
 " Maintainer:    Jeremy Cantrell <jmcantrell@gmail.com>
 
 if exists('loaded_snippets')
@@ -8,7 +8,9 @@ endif
 
 let loaded_snippets = 1
 
-let s:snippet_directory = split(&rtp,',')[0].'/snippets'
+if !exists("g:snippets_base_directory")
+	let g:snippets_base_directory = split(&rtp,',')[0].'/snippets'
+endif
 let s:snippet_filetype = ""
 
 command -bar -range AddSnippet :<line1>,<line2>call AddSnippet()
@@ -32,9 +34,9 @@ menu &Plugin.&Snippets.&List<tab><leader>sl :ListSnippets<cr>
 menu &Plugin.&Snippets.&Put<tab><leader>sp :PutSnippet<cr>
 
 function InitSnippets() "{{{
-	if !isdirectory(s:snippet_directory)
-		if GetConfirmation("Create snippet directory '".s:snippet_directory."'?")
-			call mkdir(s:snippet_directory, "p")
+	if !isdirectory(g:snippets_base_directory)
+		if GetConfirmation("Create snippet directory '".g:snippets_base_directory."'?")
+			call mkdir(g:snippets_base_directory, "p")
 		else
 			return 0
 		endif
@@ -107,7 +109,7 @@ function AddSnippet() range "{{{
 	let filetype = GetFiletype()
 	if !HasFiletype(filetype)
 		if GetConfirmation("Create filetype directory for '".filetype."'?")
-			call mkdir(s:snippet_directory.'/'.filetype)
+			call mkdir(g:snippets_base_directory.'/'.filetype)
 		else
 			call Warn("Directory for filetype '".filetype."' does not exist")
 			return
@@ -123,7 +125,7 @@ function AddSnippet() range "{{{
 		call Warn("Extension could not be determined for filetype '".a:filetype."'")
 		return
 	endif
-	let filename = s:snippet_directory.'/'.filetype.'/'.name.'.'.ext
+	let filename = g:snippets_base_directory.'/'.filetype.'/'.name.'.'.ext
 	call writefile(getline(a:firstline, a:lastline), filename)
 	echo "Snippet '".name."' added for filetype '".filetype."'"
 endfunction "}}}
@@ -211,7 +213,7 @@ function GetSnippetExtension(filetype) "{{{
 	return Strip(tokens[len(tokens)-1])
 endfunction "}}}
 function HasFiletype(filetype) "{{{
-	if isdirectory(s:snippet_directory.'/'.a:filetype)
+	if isdirectory(g:snippets_base_directory.'/'.a:filetype)
 		return 1
 	endif
 	return 0
@@ -270,8 +272,8 @@ function GetSnippetFiletypes(snippet_dirs) "{{{
 	return snippet_filetypes
 endfunction "}}}
 function GetSnippetFiles(filetype, arg_lead) "{{{
-	return split(glob(s:snippet_directory.'/'.a:filetype.'/'.a:arg_lead.'*'),"\n")
+	return split(glob(g:snippets_base_directory.'/'.a:filetype.'/'.a:arg_lead.'*'),"\n")
 endfunction "}}}
 function GetSnippetDirs(arg_lead) "{{{
-	return split(glob(s:snippet_directory.'/'.a:arg_lead.'*'), "\n")
+	return split(glob(g:snippets_base_directory.'/'.a:arg_lead.'*'), "\n")
 endfunction "}}}
