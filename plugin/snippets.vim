@@ -1,5 +1,5 @@
 " Simple snippet storage and retrieval separated by filetype
-" Last Modified: Thu 2008-02-14 10:11:46 (Eastern Standard Time)
+" Last Modified: Thu 2008-02-14 14:30:06 (-0500)
 " Maintainer:    Jeremy Cantrell <jmcantrell@gmail.com>
 
 if exists('loaded_snippets')
@@ -33,7 +33,7 @@ menu &Plugin.&Snippets.&Put<tab><leader>sp :PutSnippet<cr>
 
 function InitSnippets() "{{{
 	if !isdirectory(s:snippet_directory)
-		if GetChoice("Create snippet directory '".s:snippet_directory."'?")
+		if GetConfirmation("Create snippet directory '".s:snippet_directory."'?")
 			call mkdir(s:snippet_directory, "p")
 		else
 			return 0
@@ -43,6 +43,10 @@ function InitSnippets() "{{{
 endfunction "}}}
 function ListSnippets() "{{{
 	if !InitSnippets()
+		return
+	endif
+	if len(GetSnippetDirs("")) == 0
+		call Warn("No snippets available")
 		return
 	endif
 	let filetype = GetFiletype()
@@ -102,21 +106,21 @@ function AddSnippet() range "{{{
 	endif
 	let filetype = GetFiletype()
 	if !HasFiletype(filetype)
-		if GetChoice("Create filetype directory for '".filetype."'?")
-			mkdir(s:snippet_directory.'/'.filetype)
+		if GetConfirmation("Create filetype directory for '".filetype."'?")
+			call mkdir(s:snippet_directory.'/'.filetype)
 		else
 			call Warn("Directory for filetype '".filetype."' does not exist")
 			return
 		endif
 	endif
-	let name = StripString(input("Snippet: "))
+	let name = Strip(input("Snippet: "))
 	if len(name) == 0
 		call Warn("No snippet name entered")
 		return
 	endif
 	let ext = GetSnippetExtension(filetype)
 	if len(ext) == 0
-		call Warn("Extension could not be determined for filetype '".filetype."'")
+		call Warn("Extension could not be determined for filetype '".a:filetype."'")
 		return
 	endif
 	let filename = s:snippet_directory.'/'.filetype.'/'.name.'.'.ext
@@ -189,22 +193,22 @@ function DeleteSnippet() "{{{
 	if strlen(snippet_file) == 0
 		return
 	endif
-	if !GetChoice("Delete snippet '".name."'?")
+	if !GetConfirmation("Delete snippet '".name."'?")
 		return
 	endif
 	call delete(snippet_file)
-	call Warn("Snippet '".name."' for filetype '".filetype."' deleted")
+	echo "Snippet '".name."' for filetype '".filetype."' deleted"
 endfunction "}}}
 function GetSnippetExtension(filetype) "{{{
 	let files = GetSnippetFiles(a:filetype, "")
 	if len(files) == 0
-		return StringStrip(input("Enter extension for filetype '".filetype."': "))
+		return Strip(input("Enter extension for filetype '".a:filetype."': "))
 	endif
 	let tokens = split(GetSnippetFiles(a:filetype, "")[0], '\.')
 	if len(tokens) < 2
 		return ""
 	endif
-	return StripString(tokens[len(tokens)-1])
+	return Strip(tokens[len(tokens)-1])
 endfunction "}}}
 function HasFiletype(filetype) "{{{
 	if isdirectory(s:snippet_directory.'/'.a:filetype)
@@ -212,7 +216,7 @@ function HasFiletype(filetype) "{{{
 	endif
 	return 0
 endfunction "}}}
-function StripString(str) "{{{
+function Strip(str) "{{{
 	return substitute(substitute(a:str, '\s*$', '', 'g'), '^\s*', '', 'g')
 endfunction "}}}
 function Warn(message) "{{{
@@ -221,26 +225,24 @@ endfunction "}}}
 function Error(message) "{{{
 	echohl ErrorMsg | echo a:message | echohl None
 endfunction "}}}
-function GetChoice(prompt) "{{{
-	let reply = StripString(tolower(input(a:prompt.' (y/n): ')))
-	if reply == 'y'
-		return 1
-	else
-		return 0
-	endif
-endfunction "}}}
 function GetSnippet(filetype) "{{{
 	let s:snippet_filetype = a:filetype
 	let snippet = input("Snippet: ", "", "customlist,CompleteSnippetName")
 	unlet! s:snippet_filetype
-	return StripString(snippet)
+	return Strip(snippet)
 endfunction "}}}
 function GetFiletype() "{{{
 	if len(&filetype) == 0
-		return StripString(input("Filetype: ", "", "customlist,CompleteSnippetFiletype"))
+		return Strip(input("Filetype: ", "", "customlist,CompleteSnippetFiletype"))
 	else
 		return &filetype
 	endif
+endfunction "}}}
+function GetConfirmation(prompt) "{{{
+	if confirm(a:prompt, "Yes\nNo") == 1
+		return 1
+	endif
+	return 0
 endfunction "}}}
 function CompleteSnippetName(arg_lead, cmd_line, cursor_pos) "{{{
 	if len(s:snippet_filetype) == 0
@@ -273,4 +275,3 @@ endfunction "}}}
 function GetSnippetDirs(arg_lead) "{{{
 	return split(glob(s:snippet_directory.'/'.a:arg_lead.'*'), "\n")
 endfunction "}}}
-
