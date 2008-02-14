@@ -1,5 +1,5 @@
 " Simple snippet storage and retrieval separated by filetype
-" Last Modified: Wed 2008-02-13 21:43:58 (-0500)
+" Last Modified: Thu 2008-02-14 10:11:46 (Eastern Standard Time)
 " Maintainer:    Jeremy Cantrell <jmcantrell@gmail.com>
 
 if exists('loaded_snippets')
@@ -10,14 +10,6 @@ let loaded_snippets = 1
 
 let s:snippet_directory = split(&rtp,',')[0].'/snippets'
 let s:snippet_filetype = ""
-
-if !isdirectory(s:snippet_directory)
-	if GetChoice("Create snippet directory '".s:snippet_directory."'?")
-		mkdir(s:snippet_directory, "p")
-	else
-		finish
-	endif
-endif
 
 command -bar -range AddSnippet :<line1>,<line2>call AddSnippet()
 command -bar -range PutSnippet :<line1>,<line2>call PutSnippet()
@@ -39,7 +31,20 @@ menu &Plugin.&Snippets.&Delete<tab><leader>sd :DeleteSnippet<cr>
 menu &Plugin.&Snippets.&List<tab><leader>sl :ListSnippets<cr>
 menu &Plugin.&Snippets.&Put<tab><leader>sp :PutSnippet<cr>
 
+function InitSnippets() "{{{
+	if !isdirectory(s:snippet_directory)
+		if GetChoice("Create snippet directory '".s:snippet_directory."'?")
+			call mkdir(s:snippet_directory, "p")
+		else
+			return 0
+		endif
+	endif
+	return 1
+endfunction "}}}
 function ListSnippets() "{{{
+	if !InitSnippets()
+		return
+	endif
 	let filetype = GetFiletype()
 	if len(filetype) == 0
 		call Warn("No filetype entered")
@@ -57,6 +62,9 @@ function ListSnippets() "{{{
 	echo join(GetSnippetNames(snippet_files), "\n")
 endfunction "}}}
 function PutSnippet() range "{{{
+	if !InitSnippets()
+		return
+	endif
 	let filetype = GetFiletype()
 	if len(filetype) == 0
 		call Warn("No filetype entered")
@@ -89,6 +97,9 @@ function PutSnippet() range "{{{
 	call append(a:firstline, lines)
 endfunction "}}}
 function AddSnippet() range "{{{
+	if !InitSnippets()
+		return
+	endif
 	let filetype = GetFiletype()
 	if !HasFiletype(filetype)
 		if GetChoice("Create filetype directory for '".filetype."'?")
@@ -113,6 +124,9 @@ function AddSnippet() range "{{{
 	echo "Snippet '".name."' added for filetype '".filetype."'"
 endfunction "}}}
 function EditSnippet() "{{{
+	if !InitSnippets()
+		return
+	endif
 	let filetype = GetFiletype()
 	if len(filetype) == 0
 		call Warn("No filetype entered")
@@ -144,6 +158,9 @@ function EditSnippet() "{{{
 	execute "tabedit ".snippet_file
 endfunction "}}}
 function DeleteSnippet() "{{{
+	if !InitSnippets()
+		return
+	endif
 	let filetype = GetFiletype()
 	if len(filetype) == 0
 		call Warn("No filetype entered")
@@ -256,3 +273,4 @@ endfunction "}}}
 function GetSnippetDirs(arg_lead) "{{{
 	return split(glob(s:snippet_directory.'/'.a:arg_lead.'*'), "\n")
 endfunction "}}}
+
