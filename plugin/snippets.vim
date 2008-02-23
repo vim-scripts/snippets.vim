@@ -1,103 +1,139 @@
 " Filename:      snippets.vim
 " Description:   Simple snippet storage and retrieval separated by filetype
 " Maintainer:    Jeremy Cantrell <jmcantrell@gmail.com>
-" Last Modified: Fri 2008-02-22 10:50:52 (-0500)
+" Last Modified: Sat 2008-02-23 01:49:16 (-0500)
 
 if exists('loaded_snippets')
 	finish
 endif
-
 let loaded_snippets = 1
+
+let s:save_cpo = &cpo
+set cpo&vim
 
 if !exists("g:snippets_base_directory")
 	let g:snippets_base_directory = split(&rtp,',')[0].'/snippets'
 endif
+
 let s:snippet_filetype = ""
 
-command -bar -range AddSnippet :<line1>,<line2>call AddSnippet()
-command -bar -range AppendSnippet :<line1>,<line2>call PutSnippet(0)
-command -bar -range InsertSnippet :<line1>,<line2>call PutSnippet(-1)
-command -bar EditSnippet :call EditSnippet()
-command -bar ListSnippets :call ListSnippets()
-command -bar DeleteSnippet :call DeleteSnippet()
+" Mappings {{{
+if !hasmapto('<Plug>SnippetsAddSnippet', 'n')
+	nmap <silent> <unique> <leader>ssa <Plug>SnippetsAddSnippet
+endif
 
-xmap <silent> <leader>sa :AddSnippet<cr>
-nmap <silent> <leader>sa :%AddSnippet<cr>
-nmap <silent> <leader>sp :AppendSnippet<cr>
-nmap <silent> <leader>sP :InsertSnippet<cr>
-nmap <silent> <leader>sd :DeleteSnippet<cr>
-nmap <silent> <leader>se :EditSnippet<cr>
-nmap <silent> <leader>sl :ListSnippets<cr>
+if !hasmapto('<Plug>SnippetsAddSnippet', 'v')
+	vmap <silent> <unique> <leader>ssa <Plug>SnippetsAddSnippet
+endif
 
-xmenu &Plugin.&Snippets.&Add<tab><leader>sa :AddSnippet<cr>
-nmenu &Plugin.&Snippets.&Add<tab><leader>sa :%AddSnippet<cr>
-menu &Plugin.&Snippets.&Edit<tab><leader>se :EditSnippet<cr>
-menu &Plugin.&Snippets.&Delete<tab><leader>sd :DeleteSnippet<cr>
-menu &Plugin.&Snippets.&List<tab><leader>sl :ListSnippets<cr>
-menu &Plugin.&Snippets.&Put<tab><leader>sp :AppendSnippet<cr>
+if !hasmapto('<Plug>SnippetsAppendSnippet', 'n')
+	nmap <silent> <unique> <leader>ssp <Plug>SnippetsAppendSnippet
+endif
 
-function InitSnippets() "{{{1
-	if !isdirectory(g:snippets_base_directory)
-		if GetConfirmation("Create snippet directory '".g:snippets_base_directory."'?")
-			call mkdir(g:snippets_base_directory, "p")
-		else
-			return 0
-		endif
-	endif
-	return 1
+if !hasmapto('<Plug>SnippetsInsertSnippet', 'n')
+	nmap <silent> <unique> <leader>ssP <Plug>SnippetsInsertSnippet
+endif
+
+if !hasmapto('<Plug>SnippetsEditSnippet', 'n')
+	nmap <silent> <unique> <leader>sse <Plug>SnippetsEditSnippet
+endif
+
+if !hasmapto('<Plug>SnippetsDeleteSnippet', 'n')
+	nmap <silent> <unique> <leader>ssd <Plug>SnippetsDeleteSnippet
+endif
+
+if !hasmapto('<Plug>SnippetsListSnippets', 'n')
+	nmap <silent> <unique> <leader>ssl <Plug>SnippetsListSnippets
+endif
+
+nnoremap <unique> <script> <Plug>SnippetsAddSnippet    <SID>AddSnippet
+vnoremap <unique> <script> <Plug>SnippetsAddSnippet    <SID>AddSnippet
+nnoremap <unique> <script> <Plug>SnippetsAppendSnippet <SID>AppendSnippet
+nnoremap <unique> <script> <Plug>SnippetsInsertSnippet <SID>InsertSnippet
+nnoremap <unique> <script> <Plug>SnippetsEditSnippet   <SID>EditSnippet
+nnoremap <unique> <script> <Plug>SnippetsDeleteSnippet <SID>DeleteSnippet
+nnoremap <unique> <script> <Plug>SnippetsListSnippets  <SID>ListSnippets
+
+nnoremap <SID>AddSnippet    :%AddSnippet<cr>
+vnoremap <SID>AddSnippet    :AddSnippet<cr>
+nnoremap <SID>AppendSnippet :AppendSnippet<cr>
+nnoremap <SID>InsertSnippet :InsertSnippet<cr>
+nnoremap <SID>EditSnippet   :EditSnippet<cr>
+nnoremap <SID>DeleteSnippet :DeleteSnippet<cr>
+nnoremap <SID>ListSnippets  :ListSnippets<cr>
+
+command -bar -range AddSnippet    :<line1>,<line2>call s:AddSnippet()
+command -bar -range AppendSnippet :<line1>,<line2>call s:PutSnippet(0)
+command -bar -range InsertSnippet :<line1>,<line2>call s:PutSnippet(-1)
+
+command -bar EditSnippet   :call s:EditSnippet()
+command -bar ListSnippets  :call s:ListSnippets()
+command -bar DeleteSnippet :call s:DeleteSnippet()
+
+vnoremenu <script> &Plugin.&Snippets.&Add    <SID>AddSnippet
+nnoremenu <script> &Plugin.&Snippets.&Add    <SID>AddSnippet
+nnoremenu <script> &Plugin.&Snippets.&Edit   <SID>EditSnippet
+nnoremenu <script> &Plugin.&Snippets.&Delete <SID>DeleteSnippet
+nnoremenu <script> &Plugin.&Snippets.&List   <SID>ListSnippets
+nnoremenu <script> &Plugin.&Snippets.&Insert <SID>InsertSnippet
+nnoremenu <script> &Plugin.&Snippets.&Append <SID>AppendSnippet
+"}}}
+
+function s:SID() "{{{1
+    return matchstr(expand('<sfile>'), '<SNR>\d\+_')
 endfunction
 
-function ListSnippets() "{{{1
-	if !InitSnippets()
+function s:ListSnippets() "{{{1
+	if !s:InitSnippets()
 		return
 	endif
-	if len(GetSnippetDirs("")) == 0
-		call Warn("No snippets available")
+	if len(s:GetSnippetDirs("")) == 0
+		call s:Warn("No snippets available")
 		return
 	endif
-	let filetype = GetFiletype()
+	let filetype = s:GetFiletype()
 	if len(filetype) == 0
-		call Warn("No filetype entered")
+		call s:Warn("No filetype entered")
 		return
 	endif
-	if !HasFiletype(filetype)
-		call Warn("Filetype '".filetype."' does not exist")
+	if !s:HasFiletype(filetype)
+		call s:Warn("Filetype '".filetype."' does not exist")
 		return
 	endif
-	let snippet_files = GetSnippetFiles(filetype, "")
+	let snippet_files = s:GetSnippetFiles(filetype, "")
 	if len(snippet_files) == 0
-		call Warn("No snippets for filetype '".filetype."'")
+		call s:Warn("No snippets for filetype '".filetype."'")
 		return
 	endif
-	echo join(GetSnippetNames(snippet_files), "\n")
+	echo join(s:GetSnippetNames(snippet_files), "\n")
 endfunction
 
-function PutSnippet(offset) range "{{{1
-	if !InitSnippets()
+function s:PutSnippet(offset) range "{{{1
+	if !s:InitSnippets()
 		return
 	endif
-	let filetype = GetFiletype()
+	let filetype = s:GetFiletype()
 	if len(filetype) == 0
-		call Warn("No filetype entered")
+		call s:Warn("No filetype entered")
 		return
 	endif
-	if !HasFiletype(filetype)
-		call Warn("Filetype '".filetype."' does not exist")
+	if !s:HasFiletype(filetype)
+		call s:Warn("Filetype '".filetype."' does not exist")
 		return
 	endif
-	let snippet_files = GetSnippetFiles(filetype, "")
+	let snippet_files = s:GetSnippetFiles(filetype, "")
 	if len(snippet_files) == 0
-		call Warn("No snippets for filetype '".filetype."'")
+		call s:Warn("No snippets for filetype '".filetype."'")
 		return
 	endif
-	let snippet_names = GetSnippetNames(snippet_files)
-	let name = GetSnippet(filetype)
+	let snippet_names = s:GetSnippetNames(snippet_files)
+	let name = s:GetSnippet(filetype)
 	if len(name) == 0
-		call Warn("No snippet name entered")
+		call s:Warn("No snippet name entered")
 		return
 	endif
 	if count(snippet_names, name) == 0
-		call Warn("Snippet '".name."' does not exist")
+		call s:Warn("Snippet '".name."' does not exist")
 		return
 	endif
 	let snippet_file = snippet_files[index(snippet_names, name)]
@@ -108,59 +144,59 @@ function PutSnippet(offset) range "{{{1
 	call append(a:firstline+a:offset, lines)
 endfunction
 
-function AddSnippet() range "{{{1
-	if !InitSnippets()
+function s:AddSnippet() range "{{{1
+	if !s:InitSnippets()
 		return
 	endif
-	let filetype = GetFiletype()
-	if !HasFiletype(filetype)
-		if GetConfirmation("Create filetype directory for '".filetype."'?")
+	let filetype = s:GetFiletype()
+	if !s:HasFiletype(filetype)
+		if s:GetConfirmation("Create filetype directory for '".filetype."'?")
 			call mkdir(g:snippets_base_directory.'/'.filetype)
 		else
-			call Warn("Directory for filetype '".filetype."' does not exist")
+			call s:Warn("Directory for filetype '".filetype."' does not exist")
 			return
 		endif
 	endif
-	let name = GetSnippet(filetype)
+	let name = s:GetSnippet(filetype)
 	if len(name) == 0
-		call Warn("No snippet name entered")
+		call s:Warn("No snippet name entered")
 		return
 	endif
 	let filename = g:snippets_base_directory.'/'.filetype.'/'.name
-	let filenames = GetSnippetFiles(filetype, "")
-	if count(filenames, filename) > 0 && !GetConfirmation("Overwrite current '".name."' snippet?")
+	let filenames = s:GetSnippetFiles(filetype, "")
+	if count(filenames, filename) > 0 && !s:GetConfirmation("Overwrite current '".name."' snippet?")
 		return
 	endif
 	call writefile(getline(a:firstline, a:lastline), filename)
 	echo "Snippet '".name."' added for filetype '".filetype."'"
 endfunction
 
-function EditSnippet() "{{{1
-	if !InitSnippets()
+function s:EditSnippet() "{{{1
+	if !s:InitSnippets()
 		return
 	endif
-	let filetype = GetFiletype()
+	let filetype = s:GetFiletype()
 	if len(filetype) == 0
-		call Warn("No filetype entered")
+		call s:Warn("No filetype entered")
 		return
 	endif
-	if !HasFiletype(filetype)
-		call Warn("Filetype '".filetype."' does not exist")
+	if !s:HasFiletype(filetype)
+		call s:Warn("Filetype '".filetype."' does not exist")
 		return
 	endif
-	let snippet_files = GetSnippetFiles(filetype, "")
+	let snippet_files = s:GetSnippetFiles(filetype, "")
 	if len(snippet_files) == 0
-		call Warn("No snippets for filetype '".filetype."'")
+		call s:Warn("No snippets for filetype '".filetype."'")
 		return
 	endif
-	let snippet_names = GetSnippetNames(snippet_files)
-	let name = GetSnippet(filetype)
+	let snippet_names = s:GetSnippetNames(snippet_files)
+	let name = s:GetSnippet(filetype)
 	if len(name) == 0
-		call Warn("No snippet name entered")
+		call s:Warn("No snippet name entered")
 		return
 	endif
 	if count(snippet_names, name) == 0
-		call Warn("Snippet '".name."' does not exist")
+		call s:Warn("Snippet '".name."' does not exist")
 		return
 	endif
 	let snippet_file = snippet_files[index(snippet_names, name)]
@@ -170,98 +206,109 @@ function EditSnippet() "{{{1
 	execute "tabedit ".snippet_file." | set ft=".filetype
 endfunction
 
-function DeleteSnippet() "{{{1
-	if !InitSnippets()
+function s:DeleteSnippet() "{{{1
+	if !s:InitSnippets()
 		return
 	endif
-	let filetype = GetFiletype()
+	let filetype = s:GetFiletype()
 	if len(filetype) == 0
-		call Warn("No filetype entered")
+		call s:Warn("No filetype entered")
 		return
 	endif
-	if !HasFiletype(filetype)
-		call Warn("Filetype '".filetype."' does not exist")
+	if !s:HasFiletype(filetype)
+		call s:Warn("Filetype '".filetype."' does not exist")
 		return
 	endif
-	let snippet_files = GetSnippetFiles(filetype, "")
+	let snippet_files = s:GetSnippetFiles(filetype, "")
 	if len(snippet_files) == 0
-		call Warn("No snippets for filetype '".filetype."'")
+		call s:Warn("No snippets for filetype '".filetype."'")
 		return
 	endif
-	let snippet_names = GetSnippetNames(snippet_files)
-	let name = GetSnippet(filetype)
+	let snippet_names = s:GetSnippetNames(snippet_files)
+	let name = s:GetSnippet(filetype)
 	if len(name) == 0
-		call Warn("No snippet name entered")
+		call s:Warn("No snippet name entered")
 		return
 	endif
 	if count(snippet_names, name) == 0
-		call Warn("Snippet '".name."' does not exist")
+		call s:Warn("Snippet '".name."' does not exist")
 		return
 	endif
 	let snippet_file = snippet_files[index(snippet_names, name)]
 	if strlen(snippet_file) == 0
 		return
 	endif
-	if !GetConfirmation("Delete snippet '".name."'?")
+	if !s:GetConfirmation("Delete snippet '".name."'?")
 		return
 	endif
 	call delete(snippet_file)
 	echo "Snippet '".name."' for filetype '".filetype."' deleted"
 endfunction
 
-function HasFiletype(filetype) "{{{1
+function s:InitSnippets() "{{{1
+	if !isdirectory(g:snippets_base_directory)
+		if s:GetConfirmation("Create snippet directory '".g:snippets_base_directory."'?")
+			call mkdir(g:snippets_base_directory, "p")
+		else
+			return 0
+		endif
+	endif
+	return 1
+endfunction
+
+function s:HasFiletype(filetype) "{{{1
 	if isdirectory(g:snippets_base_directory.'/'.a:filetype)
 		return 1
 	endif
 	return 0
 endfunction
 
-function Strip(str) "{{{1
+function s:Strip(str) "{{{1
 	return substitute(substitute(a:str, '\s*$', '', 'g'), '^\s*', '', 'g')
 endfunction
 
-function Warn(message) "{{{1
+function s:Warn(message) "{{{1
 	echohl WarningMsg | echo a:message | echohl None
 endfunction
 
-function Error(message) "{{{1
+function s:Error(message) "{{{1
 	echohl ErrorMsg | echo a:message | echohl None
 endfunction
 
-function GetSnippet(filetype) "{{{1
+function s:GetSnippet(filetype) "{{{1
 	let s:snippet_filetype = a:filetype
-	let snippet = input("Snippet: ", "", "customlist,CompleteSnippetName")
+	let snippet = input("Snippet: ", "", "customlist,".s:SID()."CompleteSnippetName")
 	unlet! s:snippet_filetype
-	return Strip(snippet)
+	return s:Strip(snippet)
 endfunction
 
-function GetFiletype() "{{{1
+function s:GetFiletype() "{{{1
 	if len(&filetype) == 0
-		return Strip(input("Filetype: ", "", "customlist,CompleteSnippetFiletype"))
+		return s:Strip(input("Filetype: ", "", "customlist,".s:SID()."CompleteSnippetFiletype"))
 	else
 		return &filetype
 	endif
 endfunction
 
-function GetConfirmation(prompt) "{{{1
+function s:GetConfirmation(prompt) "{{{1
 	if confirm(a:prompt, "Yes\nNo") == 1
 		return 1
 	endif
 	return 0
 endfunction
 
-function CompleteSnippetName(arg_lead, cmd_line, cursor_pos) "{{{1
+function s:CompleteSnippetName(arg_lead, cmd_line, cursor_pos) "{{{1
 	if len(s:snippet_filetype) == 0
 		return
 	endif
-	return GetSnippetNames(GetSnippetFiles(s:snippet_filetype, a:arg_lead))
+	return s:GetSnippetNames(s:GetSnippetFiles(s:snippet_filetype, a:arg_lead))
 endfunction
 
-function CompleteSnippetFiletype(arg_lead, cmd_line, cursor_pos) "{{{1
-	return GetSnippetFiletypes(GetSnippetDirs(a:arg_lead))
+function s:CompleteSnippetFiletype(arg_lead, cmd_line, cursor_pos) "{{{1
+	return s:GetSnippetFiletypes(s:GetSnippetDirs(a:arg_lead))
 endfunction
 
-function GetSnippetNames(snippet_files) "{{{1
+function s:GetSnippetNames(snippet_files) "{{{1
 	let snippet_names = []
 	for snippet_file in a:snippet_files
 		let tokens = split(snippet_file, '/')
@@ -270,7 +317,7 @@ function GetSnippetNames(snippet_files) "{{{1
 	return snippet_names
 endfunction
 
-function GetSnippetFiletypes(snippet_dirs) "{{{1
+function s:GetSnippetFiletypes(snippet_dirs) "{{{1
 	let snippet_filetypes = []
 	for snippet_dir in a:snippet_dirs
 		let tokens = split(snippet_dir, '/')
@@ -279,10 +326,12 @@ function GetSnippetFiletypes(snippet_dirs) "{{{1
 	return snippet_filetypes
 endfunction
 
-function GetSnippetFiles(filetype, arg_lead) "{{{1
+function s:GetSnippetFiles(filetype, arg_lead) "{{{1
 	return split(glob(g:snippets_base_directory.'/'.a:filetype.'/'.a:arg_lead.'*'),"\n")
 endfunction
 
-function GetSnippetDirs(arg_lead) "{{{1
+function s:GetSnippetDirs(arg_lead) "{{{1
 	return split(glob(g:snippets_base_directory.'/'.a:arg_lead.'*'), "\n")
 endfunction
+
+let &cpo = s:save_cpo
